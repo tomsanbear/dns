@@ -260,6 +260,10 @@ func packUint64(i uint64, msg []byte, off int) (off1 int, err error) {
 	return off, nil
 }
 
+func unpackIPV4(b []byte) (net.IP, error) {
+	return net.IPv4(b[0], b[1], b[2], b[3]), nil
+}
+
 func unpackString(msg []byte, off int) (string, int, error) {
 	if off+1 > len(msg) {
 		return "", off, &Error{err: "overflow unpacking txt"}

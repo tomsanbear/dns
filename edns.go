@@ -163,6 +163,100 @@ type EDNS0 interface {
 	copy() EDNS0
 }
 
+// The EDNS0_XPF option is here for testing, IETF has yet to give it an actual option code, soooo here we are...
+type EDNS0_XPF struct {
+	Code          uint16
+	Protocol      uint8
+	IPVersion     uint8
+	RemoteAddress net.IP
+	RemotePort    uint16
+	LocalAddress  net.IP
+	LocalPort     uint16
+}
+
+func (e *EDNS0_XPF) pack() ([]byte, error) {
+	output := []byte{}
+
+	// Directly put the version byte here
+	output = append(output[:], e.IPVersion)
+
+	// Write out the protocol number via IANA-PROTO
+	output = append(output[:], e.Protocol)
+
+	// Switch between V4 and V6
+	switch e.IPVersion {
+	case 4:
+		// Write out the remote address octets
+		output = append(output[:], e.RemoteAddress.To4()[:]...)
+
+		// Write out the local address octets
+		output = append(output[:], e.LocalAddress.To4()[:]...)
+	case 6:
+		// Write out the remote address octets
+		output = append(output[:], e.RemoteAddress[:]...)
+
+		// Write out the local address octets
+		output = append(output[:], e.LocalAddress[:]...)
+	}
+
+	// Write out the remote port
+	remotePortBuf := make([]byte, 2)
+	binary.BigEndian.PutUint16(remotePortBuf, e.RemotePort)
+	output = append(output[:], remotePortBuf[:]...)
+
+	// Write out the remote port
+	localPortBuf := make([]byte, 2)
+	binary.BigEndian.PutUint16(localPortBuf, e.LocalPort)
+	output = append(output[:], localPortBuf[:]...)
+
+	// Return out beautiful new data
+	return output, nil
+}
+
+func (e *EDNS0_XPF) Option() uint16 { return e.Code }
+
+func (e *EDNS0_XPF) unpack(b []byte) error {
+	var err error
+	// Fetch the IP Version first
+	e.IPVersion = b[0]
+
+	// Fetch the protocol
+	e.Protocol = b[1]
+
+	// Switch based on version
+	switch e.IPVersion {
+	case 4:
+		e.RemoteAddress, err = unpackIPV4(b[2:6])
+		if err != nil {
+			return fmt.Errorf("failed to unpack the remote address: %v", err)
+		}
+		e.LocalAddress, err = unpackIPV4(b[6:10])
+		if err != nil {
+			return fmt.Errorf("failed to unpack the local address: %v", err)
+		}
+		e.RemotePort, _, err = unpackUint16(b[10:12], 0)
+		if err != nil {
+			return fmt.Errorf("failed to unpack the remote port: %v", err)
+		}
+		e.LocalPort, _, err = unpackUint16(b[12:14], 0)
+		if err != nil {
+			return fmt.Errorf("failed to unpack the remote port: %v", err)
+		}
+	case 6:
+		return fmt.Errorf("TODO: unsupported at this time...")
+	default:
+		return fmt.Errorf("bad IP Protocol type '%v'", e.Protocol)
+	}
+	fmt.Println(e)
+	return nil
+}
+func (e *EDNS0_XPF) String() string {
+	return fmt.Sprintf("Code=%v Protocol=%v Remote=%v:%v Local=%v:%v", e.Code, e.IPVersion, e.RemoteAddress, e.RemotePort, e.LocalAddress, e.LocalPort)
+}
+func (e *EDNS0_XPF) copy() EDNS0 {
+	return &EDNS0_XPF{e.Code, e.Protocol, e.IPVersion, e.RemoteAddress, e.RemotePort, e.LocalAddress, e.LocalPort}
+}
+
 // EDNS0_NSID option is used to retrieve a nameserver
 // identifier. When sending a request Nsid must be set to the empty string
 // The identifier is an opaque string encoded as hex.
