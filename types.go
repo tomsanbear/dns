@@ -93,6 +93,7 @@ const (
 	TypeURI        uint16 = 256
 	TypeCAA        uint16 = 257
 	TypeAVC        uint16 = 258
+	TypeXPF        uint16 = 65422
 
 	TypeTKEY uint16 = 249
 	TypeTSIG uint16 = 250
@@ -1353,6 +1354,26 @@ func (rr *CSYNC) len(off int, compression map[string]struct{}) int {
 		lastwindow = uint32(window)
 	}
 	return l
+}
+
+type XPF struct {
+	Hdr           RR_Header
+	IPVersion     uint8
+	Protocol      uint8
+	RemoteAddress net.IP `dns:"a"`
+	LocalAddress  net.IP `dns:"a"`
+	RemotePort    uint16
+	LocalPort     uint16
+}
+
+func (rr *XPF) String() string {
+	s := rr.Hdr.String()
+	s += fmt.Sprintf("Protocol=%v Remote=%v:%v Local=%v:%v", rr.IPVersion, rr.RemoteAddress, rr.RemotePort, rr.LocalAddress, rr.LocalPort)
+	return s
+}
+
+func (rr *XPF) parse(c *zlexer, origin, file string) *ParseError {
+	panic("dns: internal error: parse should never be called on XPF")
 }
 
 // TimeToString translates the RRSIG's incep. and expir. times to the
